@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VIP 주차 관제 - 관리자 페이지</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+  <header class="bg-gray-900 text-white p-4 shadow-md flex justify-between items-center">
+    <h1 class="text-xl font-bold">⚙️ VIP 명단 및 주차 배치 관리자</h1>
+    <a href="/index.html" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-lg font-bold">현장 스캐너로 이동</a>
+  </header>
+
+  <main class="max-w-4xl mx-auto p-4 md:p-6 grid gap-6">
+
+    <!-- VIP 등록 폼 -->
+    <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-200">
+      <h2 class="text-lg font-bold mb-4 text-blue-900">➕ 신규 VIP 사전 등록</h2>
+      <form id="addVipForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">성함 *</label>
+          <input type="text" id="inputName" required placeholder="예: 홍길동" class="w-full border p-2.5 rounded-lg font-semibold bg-gray-50">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">직함</label>
+          <input type="text" id="inputTitle" placeholder="예: 대표 / 의원 / 장관" class="w-full border p-2.5 rounded-lg font-semibold bg-gray-50">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">차량 번호 전체 *</label>
+          <input type="text" id="inputCar" required placeholder="예: 123가4567" class="w-full border p-2.5 rounded-lg font-semibold bg-gray-50">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-600 mb-1">지정 주차 구역 *</label>
+          <input type="text" id="inputZone" required placeholder="예: A-05" class="w-full border p-2.5 rounded-lg font-semibold bg-gray-50">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-bold text-gray-600 mb-1">비고 (의전 요청 사항 등)</label>
+          <input type="text" id="inputNote" placeholder="예: 발렛 요청, 휠체어 이용" class="w-full border p-2.5 rounded-lg font-semibold bg-gray-50">
+        </div>
+        <button type="submit" class="md:col-span-2 bg-blue-800 hover:bg-blue-900 text-white font-bold py-3 rounded-lg shadow">
+          VIP 등록하기
+        </button>
+      </form>
+    </div>
+
+    <!-- VIP 목록 테이블 -->
+    <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-200 overflow-x-auto">
+      <h2 class="text-lg font-bold mb-4 text-gray-800">📋 등록된 VIP 및 배치 목록</h2>
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="border-b bg-gray-100 text-xs text-gray-600 uppercase">
+            <th class="p-3">성함/직함</th>
+            <th class="p-3">차량 번호</th>
+            <th class="p-3">지정 구역</th>
+            <th class="p-3">비고</th>
+            <th class="p-3 text-center">관리</th>
+          </tr>
+        </thead>
+        <tbody id="vipTableBody">
+          <!-- JS로 데이터 렌더링 -->
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+
+  <script>
+    async function loadVips() {
+      const res = await fetch('/api/vips');
+      const result = await res.json();
+      const tbody = document.getElementById('vipTableBody');
+      tbody.innerHTML = '';
+
+      if (result.data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-400">등록된 VIP가 없습니다.</td></tr>`;
+        return;
+      }
+
+      result.data.forEach(vip => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b hover:bg-gray-50 font-semibold';
+        tr.innerHTML = `
+          <td class="p-3"><span class="font-bold text-gray-900">${vip.name}</span> <span class="text-xs text-gray-500">${vip.title}</span></td>
+          <td class="p-3 text-blue-800 font-mono font-bold">${vip.carNumber}</td>
+          <td class="p-3"><span class="bg-yellow-100 text-yellow-800 font-black px-2 py-1 rounded-md">${vip.zone}</span></td>
+          <td class="p-3 text-xs text-gray-600">${vip.note || '-'}</td>
+          <td class="p-3 text-center">
+            <button onclick="deleteVip(${vip.id})" class="bg-red-500 hover:bg-red-600 text-white text-xs px-2.5 py-1 rounded">삭제</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('addVipForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('inputName').value,
+        title: document.getElementById('inputTitle').value,
+        carNumber: document.getElementById('inputCar').value,
+        zone: document.getElementById('inputZone').value,
+        note: document.getElementById('inputNote').value
+      };
+
+      const res = await fetch('/api/vips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert('VIP가 등록되었습니다.');
+        e.target.reset();
+        loadVips();
+      }
+    });
+
+    async function deleteVip(id) {
+      if (!confirm('정말 삭제하시겠습니까?')) return;
+      await fetch(`/api/vips/${id}`, { method: 'DELETE' });
+      loadVips();
+    }
+
+    loadVips();
+  </script>
+</body>
+</html>
